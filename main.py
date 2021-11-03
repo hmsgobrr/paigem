@@ -34,24 +34,27 @@ class Player:
         self.img = pygame.transform.scale(self.original_img, (108, 48))
         self.pos = [SWIDTH/2.0 - self.img.get_width(), SHEIGHT-90]
         self.speed = speed
+        self.facingLeft = False
         self.frame = 0
         self.frameAcc = 0.0
 
     def update(self, dt):
-        self.frameAcc += dt
-        if self.frameAcc >= 0.1:
-            self.frame += 1
-            self.frame %= 2
-            self.frameAcc = 0.0
-
         k = pygame.key.get_pressed()
         if k[K_d] or k[K_RIGHT]:
+            self.facingLeft = False
             move =  1
         elif k[K_a] or k[K_LEFT]:
+            self.facingLeft = True
             move = -1
         else:
             move =  0
         self.pos[0] += move*self.speed*dt
+
+        self.frameAcc += dt
+        if self.frameAcc >= 0.1 and move != 0:
+            self.frame += 1
+            self.frame %= 2
+            self.frameAcc = 0.0
 
         if self.pos[0] < self.img.get_width()/-2.0:
             self.pos[0] = SWIDTH + self.img.get_width()/2.0
@@ -59,7 +62,10 @@ class Player:
             self.pos[0] = self.img.get_width()/-2.0  
 
     def draw(self):
-        scr.blit(self.img, (self.pos[0], self.pos[1]), (54*self.frame, 0, 54, 48))
+        if self.facingLeft:
+            scr.blit(pygame.transform.flip(self.img, True, False), (self.pos[0], self.pos[1]), (54*self.frame, 0, 54, 48))
+        else:
+            scr.blit(self.img, (self.pos[0], self.pos[1]), (54*self.frame, 0, 54, 48))
 
     # def sizeUp(self):
         # self.img = pygame.transform.scale(self.original_img, (self.img.get_width()+1, self.img.get_height()+1))

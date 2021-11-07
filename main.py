@@ -7,7 +7,10 @@ from pygame.locals import *
 SWIDTH  = 600
 SHEIGHT = 480
 
-GRAVITY = 2.5
+OBJSPEED = 200
+OBJDIST = 70
+
+PLAYER_MAX_FRAME = 4
 
 class BG:
     def __init__(self, img_path, speed):
@@ -31,9 +34,10 @@ class BG:
 class Player:
     def __init__(self, img_path, speed):
         self.original_img = pygame.image.load(img_path)
-        self.img = pygame.transform.scale(self.original_img, (108, 48))
+        self.img = pygame.transform.scale(self.original_img, (216, 48))
         self.pos = [SWIDTH/2.0 - self.img.get_width(), SHEIGHT-90]
         self.speed = speed
+        self.barkMeter = 0.0
         self.facingLeft = False
         self.frame = 0
         self.frameAcc = 0.0
@@ -50,46 +54,63 @@ class Player:
             move =  0
         self.pos[0] += move*self.speed*dt
 
+        if self.barkMeter > 0.0:
+            self.barkMeter -= dt
+
         self.frameAcc += dt
         if self.frameAcc >= 0.1 and move != 0:
             self.frame += 1
             self.frame %= 2
             self.frameAcc = 0.0
 
-        if self.pos[0] < self.img.get_width()/-2.0:
-            self.pos[0] = SWIDTH + self.img.get_width()/2.0
-        elif self.pos[0] > SWIDTH + self.img.get_width()/2.0:
-            self.pos[0] = self.img.get_width()/-2.0  
+        if self.pos[0] < self.img.get_width()/-6.0:
+            self.pos[0] = SWIDTH - self.img.get_width()/6.0
+        elif self.pos[0] > SWIDTH - self.img.get_width()/6.0:
+            self.pos[0] = self.img.get_width()/-6.0  
 
     def draw(self):
         if self.facingLeft:
-            scr.blit(pygame.transform.flip(self.img, True, False), (self.pos[0], self.pos[1]), (54*self.frame, 0, 54, 48))
+            frameOffsetX = 0 if self.barkMeter > 0.0 else 108
+            scr.blit(pygame.transform.flip(self.img, True, False), (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
         else:
-            scr.blit(self.img, (self.pos[0], self.pos[1]), (54*self.frame, 0, 54, 48))
+            frameOffsetX = 108 if self.barkMeter > 0.0 else 0
+            scr.blit(self.img, (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
 
     # def sizeUp(self):
         # self.img = pygame.transform.scale(self.original_img, (self.img.get_width()+1, self.img.get_height()+1))
 
 class Obj:
-    def __init__(self, img_path):
+    def __init__(self, img_path, index):
         self.img = pygame.image.load(img_path)
-        self.img = pygame.transform.scale(self.img, (24, 43))
-        self.pos = [random.randint(10, SWIDTH - 34), random.randint(-SHEIGHT, -50)]
-        self.velY = 0.0
+        self.img = pygame.transform.scale(self.img, (17, 32))
+        # xPos = random.randint(0, SWIDTH - 17) if index == 0 else bepises[index-1].pos[0] + -200 if random.randint(0, 1) == 0 else 200
+        # if xPos > SWIDTH-17:
+            # xPos = SWIDTH-17
+        # elif xPos < 0:
+            # xPos = 0
+        self.pos = [random.randint(0, SWIDTH - 17), -50 + index*-OBJDIST]
 
     def update(self, dt):
-        self.velY += GRAVITY
-        if self.velY >= 300:
-            self.velY = 200
-        self.pos[1] += self.velY*dt
+        self.pos[1] += OBJSPEED*dt
 
         objRect = Rect(self.pos[0], self.pos[1], self.img.get_width(), self.img.get_height())
-        playerRect = Rect(player.pos[0], player.pos[1], player.img.get_width(), player.img.get_height())
+        playerRect = Rect(player.pos[0], player.pos[1], player.img.get_width()/PLAYER_MAX_FRAME, player.img.get_height())
 
         if self.pos[1] > SHEIGHT or objRect.colliderect(playerRect):
-            self.pos = [random.randint(10, SWIDTH - 34), random.randint(-SHEIGHT, -50)]
-            self.velY = 0.0
+            # newX = min(bepises, key=lambda b: b.pos[1]).pos[0] + -200 if random.randint(0, 1) == 0 else 200
+            # if newX > SWIDTH-17:
+                # newX = SWIDTH-17
+            # elif newX < 0:
+                # newX = 0
+            newY = min(bepises, key=lambda b: b.pos[1]).pos[1] - OBJDIST
+            if newY > -32:
+                newY -= 100
+            self.pos = [random.randint(0, SWIDTH - 17), newY]
+
             if objRect.colliderect(playerRect):
+                player.barkMeter = 0.25
+                pygame.mixer.Sound.play(barkSfx)
+
                 global score
                 score += 1
 
@@ -103,8 +124,10 @@ scr = pygame.display.set_mode((600, 480))
 bg = BG(os.path.join("./", "doge.png"), 30)
 player = Player(os.path.join("./", "doge-sheet.png"), 300)
 bepises = []
-for i in range(5):
-    bepises.append(Obj(os.path.join("./", "bepis.png")))
+for i in range(10):
+    bepises.append(Obj(os.path.join("./", "bepis.png"), i))
+
+barkSfx = pygame.mixer.Sound(os.path.join("./", "bark.wav"))
 
 score = 0
 

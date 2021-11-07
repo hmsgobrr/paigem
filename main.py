@@ -58,7 +58,7 @@ class Player:
             self.barkMeter -= dt
 
         self.frameAcc += dt
-        if self.frameAcc >= 0.1 and move != 0:
+        if self.frameAcc >= 0.15 and move != 0:
             self.frame += 1
             self.frame %= 2
             self.frameAcc = 0.0

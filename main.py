@@ -76,18 +76,10 @@ class Player:
             frameOffsetX = 108 if self.barkMeter > 0.0 else 0
             scr.blit(self.img, (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
 
-    # def sizeUp(self):
-        # self.img = pygame.transform.scale(self.original_img, (self.img.get_width()+1, self.img.get_height()+1))
-
 class Obj:
     def __init__(self, img_path, index):
         self.img = pygame.image.load(img_path)
         self.img = pygame.transform.scale(self.img, (17, 32))
-        # xPos = random.randint(0, SWIDTH - 17) if index == 0 else bepises[index-1].pos[0] + -200 if random.randint(0, 1) == 0 else 200
-        # if xPos > SWIDTH-17:
-            # xPos = SWIDTH-17
-        # elif xPos < 0:
-            # xPos = 0
         self.pos = [random.randint(0, SWIDTH - 17), -50 + index*-OBJDIST]
 
     def update(self, dt):
@@ -97,11 +89,6 @@ class Obj:
         playerRect = Rect(player.pos[0], player.pos[1], player.img.get_width()/PLAYER_MAX_FRAME, player.img.get_height())
 
         if self.pos[1] > SHEIGHT or objRect.colliderect(playerRect):
-            # newX = min(bepises, key=lambda b: b.pos[1]).pos[0] + -200 if random.randint(0, 1) == 0 else 200
-            # if newX > SWIDTH-17:
-                # newX = SWIDTH-17
-            # elif newX < 0:
-                # newX = 0
             newY = min(bepises, key=lambda b: b.pos[1]).pos[1] - OBJDIST
             if newY > -32:
                 newY -= 100

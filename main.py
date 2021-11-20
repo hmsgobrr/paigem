@@ -11,31 +11,51 @@ OBJSPEED = 200
 OBJDIST = 70
 
 PLAYER_MAX_FRAME = 4
+EXPLOSION_MAX_FRAME = 6
 
-class BG:
-    def __init__(self, img_path, speed):
-        self.img = pygame.image.load(img_path)
-        self.y1 = SHEIGHT/2.0 - self.img.get_height()/2.0
-        self.y2 = self.y1 - SHEIGHT
-        self.speed = speed
+bepisImg = pygame.image.load(os.path.join("./", "bepis.png"))
+bepisImg = pygame.transform.scale(bepisImg, (17, 32))
+bombImg = pygame.image.load(os.path.join("./", "bomb.png"))
+
+dogeImg = pygame.image.load(os.path.join("./", "doge-sheet.png"))
+dogeImg = pygame.transform.scale(dogeImg, (216, 48))
+
+explosionImg = pygame.image.load(os.path.join("./", "explosion.png"))
+explosionImg = pygame.transform.scale(explosionImg, (384, 64))
+
+isOver = False
+
+class Explosion:
+    def __init__(self):
+        self.active = False
+        self.frame = 0
+        self.frameAcc = 0.0
+
+    def explode(self):
+        self.frame = 0
+        self.frameAcc = 0.0
+        self.active = True
 
     def update(self, dt):
-        self.y1 += self.speed*dt
-        if self.y1 >= SHEIGHT/2.0 - self.img.get_height()/2.0 + SHEIGHT:
-            self.y1 = SHEIGHT/2.0 - self.img.get_height()/2.0 - SHEIGHT
-        self.y2 += self.speed*dt
-        if self.y2 >= SHEIGHT/2.0 - self.img.get_height()/2.0 + SHEIGHT:
-            self.y2 = SHEIGHT/2.0 - self.img.get_height()/2.0 - SHEIGHT
+        if not self.active:
+            return
+
+        self.frameAcc += dt
+        if self.frameAcc >= 0.075:
+            self.frame += 1
+            self.frameAcc = 0.0
 
     def draw(self):
-        scr.blit(self.img, (SWIDTH/2.0 - self.img.get_width()/2.0, self.y1))
-        scr.blit(self.img, (SWIDTH/2.0 - self.img.get_width()/2.0, self.y2))
+        if not self.active:
+            return
+
+        playerPos = (player.pos[0] + dogeImg.get_width()/PLAYER_MAX_FRAME/2, player.pos[1] + dogeImg.get_height()/2)
+        explosionPos = (playerPos[0] - explosionImg.get_width()/EXPLOSION_MAX_FRAME/2, playerPos[1] - explosionImg.get_height()/2)
+        scr.blit(explosionImg, explosionPos, (64*self.frame, 0, 64, 64))
 
 class Player:
-    def __init__(self, img_path, speed):
-        self.original_img = pygame.image.load(img_path)
-        self.img = pygame.transform.scale(self.original_img, (216, 48))
-        self.pos = [SWIDTH/2.0 - self.img.get_width(), SHEIGHT-90]
+    def __init__(self, speed):
+        self.pos = [SWIDTH/2.0 - dogeImg.get_width(), SHEIGHT-70]
         self.speed = speed
         self.barkMeter = 0.0
         self.facingLeft = False
@@ -63,30 +83,29 @@ class Player:
             self.frame %= 2
             self.frameAcc = 0.0
 
-        if self.pos[0] < self.img.get_width()/-6.0:
-            self.pos[0] = SWIDTH - self.img.get_width()/6.0
-        elif self.pos[0] > SWIDTH - self.img.get_width()/6.0:
-            self.pos[0] = self.img.get_width()/-6.0  
+        if self.pos[0] < dogeImg.get_width()/-6.0:
+            self.pos[0] = SWIDTH - dogeImg.get_width()/6.0
+        elif self.pos[0] > SWIDTH - dogeImg.get_width()/6.0:
+            self.pos[0] = dogeImg.get_width()/-6.0  
 
     def draw(self):
         if self.facingLeft:
             frameOffsetX = 0 if self.barkMeter > 0.0 else 108
-            scr.blit(pygame.transform.flip(self.img, True, False), (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
+            scr.blit(pygame.transform.flip(dogeImg, True, False), (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
         else:
             frameOffsetX = 108 if self.barkMeter > 0.0 else 0
-            scr.blit(self.img, (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
+            scr.blit(dogeImg, (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
 
 class Obj:
-    def __init__(self, img_path, index):
-        self.img = pygame.image.load(img_path)
-        self.img = pygame.transform.scale(self.img, (17, 32))
+    def __init__(self, index):
         self.pos = [random.randint(0, SWIDTH - 17), -50 + index*-OBJDIST]
+        self.isBomb = True if random.randint(0, 5) == 0 else False
 
     def update(self, dt):
         self.pos[1] += OBJSPEED*dt
 
-        objRect = Rect(self.pos[0], self.pos[1], self.img.get_width(), self.img.get_height())
-        playerRect = Rect(player.pos[0], player.pos[1], player.img.get_width()/PLAYER_MAX_FRAME, player.img.get_height())
+        objRect = Rect(self.pos[0], self.pos[1], bepisImg.get_width(), bepisImg.get_height())
+        playerRect = Rect(player.pos[0], player.pos[1], dogeImg.get_width()/PLAYER_MAX_FRAME, dogeImg.get_height())
 
         if self.pos[1] > SHEIGHT or objRect.colliderect(playerRect):
             newY = min(bepises, key=lambda b: b.pos[1]).pos[1] - OBJDIST
@@ -95,30 +114,62 @@ class Obj:
             self.pos = [random.randint(0, SWIDTH - 17), newY]
 
             if objRect.colliderect(playerRect):
-                player.barkMeter = 0.25
-                pygame.mixer.Sound.play(barkSfx)
+                if self.isBomb:
+                    explosion.explode()
+                    global isOver
+                    isOver = True
+                else:
+                    player.barkMeter = 0.25
+                    pygame.mixer.Sound.play(barkSfx)
+                    global score
+                    score += 1
 
-                global score
-                score += 1
+            self.isBomb = True if random.randint(0, 5) == 0 else False
 
     def draw(self):
-        scr.blit(self.img, (self.pos[0], self.pos[1]))
+        if self.isBomb:
+            scr.blit(bombImg, (self.pos[0], self.pos[1]), (30*random.randint(0, 1), 0, 30, 30))
+        else:
+            scr.blit(bepisImg, (self.pos[0], self.pos[1]))
 
 pygame.init()
 clock = pygame.time.Clock()
 scr = pygame.display.set_mode((600, 480))
 
-bg = BG(os.path.join("./", "doge.png"), 30)
-player = Player(os.path.join("./", "doge-sheet.png"), 300)
+bg = pygame.image.load(os.path.join("./", "bg.png"))
+bg = pygame.transform.scale(bg, (600, 480))
+
+player = Player(300)
+
 bepises = []
 for i in range(10):
-    bepises.append(Obj(os.path.join("./", "bepis.png"), i))
+    bepises.append(Obj(i))
 
 barkSfx = pygame.mixer.Sound(os.path.join("./", "bark.wav"))
 
 score = 0
 
 font = pygame.font.Font(os.path.join("./", "font.ttf"), 24)
+
+explosion = Explosion()
+
+def updateGame(dt):
+    if isOver:
+        return
+
+    for bepis in bepises:
+        bepis.update(dt)
+
+    player.update(dt)
+
+def gameOverScreen():
+    textW, textH = font.size("Doge is ded. [SPACE] to retry")
+    scr.blit(font.render("Doge is ded. [SPACE] to retry", True, pygame.Color(0, 0, 0)), (SWIDTH/2 - textW/2, SHEIGHT/2 - 40))
+
+    k = pygame.key.get_pressed()
+    if k[K_SPACE]:
+        global isOver
+        isOver = False
 
 while True:
     dt = clock.tick(30)/1000.0
@@ -127,19 +178,23 @@ while True:
         if (event.type == pygame.QUIT) or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
             sys.exit()
 
-    scr.fill((0, 0, 0))
+    updateGame(dt)
 
-    bg.update(dt)    
-    bg.draw()
+    explosion.update(dt)
+
+    scr.fill((0, 0, 0))
+    scr.blit(bg, (0, 0))
 
     for bepis in bepises:
-        bepis.update(dt)
         bepis.draw()
 
-    player.update(dt)
     player.draw()
+    explosion.draw()
 
-    scr.blit(font.render("SCORE: " + str(score), True, pygame.Color(255, 255, 255)), (10, 10))
-    scr.blit(font.render("FPS: " + str(int(1/dt)), True, pygame.Color(255, 255, 255)), (520, 10))
+    scr.blit(font.render("SCORE: " + str(score), True, pygame.Color(0, 0, 0)), (10, 10))
+    scr.blit(font.render("FPS: " + str(int(1/dt)), True, pygame.Color(0, 0, 0)), (520, 10))
+
+    if isOver:
+        gameOverScreen()
 
     pygame.display.update()

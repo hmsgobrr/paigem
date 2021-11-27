@@ -10,7 +10,7 @@ SHEIGHT = 480
 OBJSPEED = 200
 OBJDIST = 70
 
-PLAYER_MAX_FRAME = 4
+PLAYER_MAX_FRAME = 5
 EXPLOSION_MAX_FRAME = 6
 
 bepisImg = pygame.image.load(os.path.join("./", "bepis.png"))
@@ -18,12 +18,16 @@ bepisImg = pygame.transform.scale(bepisImg, (17, 32))
 bombImg = pygame.image.load(os.path.join("./", "bomb.png"))
 
 dogeImg = pygame.image.load(os.path.join("./", "doge-sheet.png"))
-dogeImg = pygame.transform.scale(dogeImg, (216, 48))
+dogeImg = pygame.transform.scale(dogeImg, (54*PLAYER_MAX_FRAME, 48))
 
 explosionImg = pygame.image.load(os.path.join("./", "explosion.png"))
 explosionImg = pygame.transform.scale(explosionImg, (384, 64))
 
+bg = pygame.image.load(os.path.join("./", "bg.png"))
+bg = pygame.transform.scale(bg, (600, 480))
+
 isOver = False
+isGameStart = False
 
 class Explosion:
     def __init__(self):
@@ -90,9 +94,16 @@ class Player:
 
     def draw(self):
         if self.facingLeft:
-            frameOffsetX = 0 if self.barkMeter > 0.0 else 108
-            scr.blit(pygame.transform.flip(dogeImg, True, False), (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
+            flippedImg = pygame.transform.flip(dogeImg, True, False)
+            if isOver:
+                scr.blit(flippedImg, (self.pos[0], self.pos[1]), (0, 0, 54, 48))
+                return
+            frameOffsetX = 54 if self.barkMeter > 0.0 else 162
+            scr.blit(flippedImg, (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
         else:
+            if isOver:
+                scr.blit(dogeImg, (self.pos[0], self.pos[1]), (54*4, 0, 54, 48))
+                return
             frameOffsetX = 108 if self.barkMeter > 0.0 else 0
             scr.blit(dogeImg, (self.pos[0], self.pos[1]), (54*self.frame + frameOffsetX, 0, 54, 48))
 
@@ -116,6 +127,7 @@ class Obj:
             if objRect.colliderect(playerRect):
                 if self.isBomb:
                     explosion.explode()
+                    pygame.mixer.Sound.play(explosionSfx)
                     global isOver
                     isOver = True
                 else:
@@ -136,25 +148,29 @@ pygame.init()
 clock = pygame.time.Clock()
 scr = pygame.display.set_mode((600, 480))
 
-bg = pygame.image.load(os.path.join("./", "bg.png"))
-bg = pygame.transform.scale(bg, (600, 480))
-
 player = Player(300)
-
 bepises = []
 for i in range(10):
     bepises.append(Obj(i))
-
-barkSfx = pygame.mixer.Sound(os.path.join("./", "bark.wav"))
-
 score = 0
-
-font = pygame.font.Font(os.path.join("./", "font.ttf"), 24)
-
 explosion = Explosion()
 
+barkSfx = pygame.mixer.Sound(os.path.join("./", "bark.wav"))
+explosionSfx = pygame.mixer.Sound(os.path.join("./", "explosion.wav"))
+font = pygame.font.Font(os.path.join("./", "font.ttf"), 24)
+
+def initGame():
+    global isOver, player, bepises, score, explosion
+    isOver = False
+    player.__init__(300)
+    bepises = []
+    for i in range(10):
+        bepises.append(Obj(i))
+    score = 0
+    explosion.__init__()
+
 def updateGame(dt):
-    if isOver:
+    if isOver or not isGameStart:
         return
 
     for bepis in bepises:
@@ -162,14 +178,34 @@ def updateGame(dt):
 
     player.update(dt)
 
+def drawGame():
+    for bepis in bepises:
+        bepis.draw()
+
+    player.draw()
+    explosion.draw()
+
+    scr.blit(font.render("SCORE: " + str(score), True, pygame.Color(0, 0, 0)), (10, 10))
+    scr.blit(font.render("FPS: " + str(int(1/dt)), True, pygame.Color(0, 0, 0)), (520, 10))
+
 def gameOverScreen():
-    textW, textH = font.size("Doge is ded. [SPACE] to retry")
+    textW, _ = font.size("Doge is ded. [SPACE] to retry")
     scr.blit(font.render("Doge is ded. [SPACE] to retry", True, pygame.Color(0, 0, 0)), (SWIDTH/2 - textW/2, SHEIGHT/2 - 40))
 
     k = pygame.key.get_pressed()
     if k[K_SPACE]:
-        global isOver
-        isOver = False
+        initGame()
+
+def mainMenuScreen():
+    textW, _ = font.size("Welcome to Bepis Adventures.")
+    scr.blit(font.render("Welcome to Bepis Adventures.", True, pygame.Color(0, 0, 0)), (SWIDTH/2 - textW/2, SHEIGHT/2 - 60))
+    textW, _ = font.size("[SPACE] to play")
+    scr.blit(font.render("[SPACE] to play", True, pygame.Color(0, 0, 0)), (SWIDTH/2 - textW/2, SHEIGHT/2 - 20))
+
+    k = pygame.key.get_pressed()
+    if k[K_SPACE]:
+        global isGameStart
+        isGameStart = True
 
 while True:
     dt = clock.tick(30)/1000.0
@@ -185,14 +221,10 @@ while True:
     scr.fill((0, 0, 0))
     scr.blit(bg, (0, 0))
 
-    for bepis in bepises:
-        bepis.draw()
-
-    player.draw()
-    explosion.draw()
-
-    scr.blit(font.render("SCORE: " + str(score), True, pygame.Color(0, 0, 0)), (10, 10))
-    scr.blit(font.render("FPS: " + str(int(1/dt)), True, pygame.Color(0, 0, 0)), (520, 10))
+    if isGameStart:
+        drawGame()
+    else:
+        mainMenuScreen()
 
     if isOver:
         gameOverScreen()

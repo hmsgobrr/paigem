@@ -13,6 +13,9 @@ OBJDIST = 70
 PLAYER_MAX_FRAME = 5
 EXPLOSION_MAX_FRAME = 6
 
+BEPIS_BAR_DECREASE_SPEED = 15
+BEPIS_BAR_INCREASE_SPEED = 15
+
 bepisImg = pygame.image.load(os.path.join("./", "bepis.png"))
 bepisImg = pygame.transform.scale(bepisImg, (17, 32))
 bombImg = pygame.image.load(os.path.join("./", "bomb.png"))
@@ -23,11 +26,15 @@ dogeImg = pygame.transform.scale(dogeImg, (54*PLAYER_MAX_FRAME, 48))
 explosionImg = pygame.image.load(os.path.join("./", "explosion.png"))
 explosionImg = pygame.transform.scale(explosionImg, (384, 64))
 
+bepisBarImg = pygame.image.load(os.path.join("./", "bepisbar.png"))
+bepisBarImg = pygame.transform.scale(bepisBarImg, (96*2, 30))
+
 bg = pygame.image.load(os.path.join("./", "bg.png"))
 bg = pygame.transform.scale(bg, (600, 480))
 
 isOver = False
 isGameStart = False
+deathMessage = ""
 
 class Explosion:
     def __init__(self):
@@ -56,6 +63,25 @@ class Explosion:
         playerPos = (player.pos[0] + dogeImg.get_width()/PLAYER_MAX_FRAME/2, player.pos[1] + dogeImg.get_height()/2)
         explosionPos = (playerPos[0] - explosionImg.get_width()/EXPLOSION_MAX_FRAME/2, playerPos[1] - explosionImg.get_height()/2)
         scr.blit(explosionImg, explosionPos, (64*self.frame, 0, 64, 64))
+
+class BepisBar:
+    def __init__(self):
+        self.bepisMeter = 100.0
+
+    def update(self, dt):
+        self.bepisMeter -= dt*BEPIS_BAR_DECREASE_SPEED
+        if self.bepisMeter > 100:
+            self.bepisMeter = 100
+        if self.bepisMeter < 0:
+            pygame.mixer.Sound.play(deathSfx)
+            global isOver, deathMessage
+            deathMessage = "Doge is out of bepis"
+            isOver = True
+
+    def draw(self):
+        scr.blit(font.render("Bepis Bar", True, pygame.Color(0, 0, 0)), (200, 7))
+        scr.blit(bepisBarImg, (100, 7), (0, 0, 96, 30))
+        scr.blit(bepisBarImg, (100, 7), (96, 0, self.bepisMeter/100*96, 30))
 
 class Player:
     def __init__(self, speed):
@@ -128,11 +154,13 @@ class Obj:
                 if self.isBomb:
                     explosion.explode()
                     pygame.mixer.Sound.play(explosionSfx)
-                    global isOver
+                    global isOver, deathMessage
+                    deathMessage = "Doge is ded"
                     isOver = True
                 else:
                     player.barkMeter = 0.25
                     pygame.mixer.Sound.play(barkSfx)
+                    bepisBar.bepisMeter += BEPIS_BAR_INCREASE_SPEED
                     global score
                     score += 1
 
@@ -150,24 +178,27 @@ scr = pygame.display.set_mode((600, 480))
 
 player = Player(300)
 bepises = []
-for i in range(10):
+for i in range(5):
     bepises.append(Obj(i))
 score = 0
 explosion = Explosion()
+bepisBar = BepisBar()
 
 barkSfx = pygame.mixer.Sound(os.path.join("./", "bark.wav"))
 explosionSfx = pygame.mixer.Sound(os.path.join("./", "explosion.wav"))
+deathSfx = pygame.mixer.Sound(os.path.join("./", "death.wav"))
 font = pygame.font.Font(os.path.join("./", "font.ttf"), 24)
 
 def initGame():
-    global isOver, player, bepises, score, explosion
+    global isOver, player, bepises, score, explosion, bepisBar
     isOver = False
     player.__init__(300)
     bepises = []
-    for i in range(10):
+    for i in range(5):
         bepises.append(Obj(i))
     score = 0
     explosion.__init__()
+    bepisBar.__init__()
 
 def updateGame(dt):
     if isOver or not isGameStart:
@@ -178,6 +209,8 @@ def updateGame(dt):
 
     player.update(dt)
 
+    bepisBar.update(dt)
+
 def drawGame():
     for bepis in bepises:
         bepis.draw()
@@ -185,12 +218,14 @@ def drawGame():
     player.draw()
     explosion.draw()
 
+    bepisBar.draw()
+
     scr.blit(font.render("SCORE: " + str(score), True, pygame.Color(0, 0, 0)), (10, 10))
     scr.blit(font.render("FPS: " + str(int(1/dt)), True, pygame.Color(0, 0, 0)), (520, 10))
 
 def gameOverScreen():
-    textW, _ = font.size("Doge is ded. [SPACE] to retry")
-    scr.blit(font.render("Doge is ded. [SPACE] to retry", True, pygame.Color(0, 0, 0)), (SWIDTH/2 - textW/2, SHEIGHT/2 - 40))
+    textW, _ = font.size(deathMessage+". [SPACE] to retry")
+    scr.blit(font.render(deathMessage+". [SPACE] to retry", True, pygame.Color(0, 0, 0)), (SWIDTH/2 - textW/2, SHEIGHT/2 - 40))
 
     k = pygame.key.get_pressed()
     if k[K_SPACE]:

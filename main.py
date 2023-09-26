@@ -16,6 +16,8 @@ EXPLOSION_MAX_FRAME = 6
 BEPIS_BAR_DECREASE_SPEED = 15
 BEPIS_BAR_INCREASE_SPEED = 15
 
+PLAYER_MOUSECLICK_STOP_RANGE = 6
+
 bepisImg = pygame.image.load(os.path.join("./", "bepis.png"))
 bepisImg = pygame.transform.scale(bepisImg, (17, 32))
 bombImg = pygame.image.load(os.path.join("./", "bomb.png"))
@@ -92,16 +94,32 @@ class Player:
         self.frame = 0
         self.frameAcc = 0.0
 
+        self.isChasingMouseClick = False
+        self.lastMouseClick = [0, 0]
+
     def update(self, dt):
         k = pygame.key.get_pressed()
         if k[K_d] or k[K_RIGHT]:
-            self.facingLeft = False
+            self.isChasingMouseClick = False
+
             move =  1
         elif k[K_a] or k[K_LEFT]:
-            self.facingLeft = True
+            self.isChasingMouseClick = False
+            
             move = -1
         else:
             move =  0
+
+        if pygame.mouse.get_pressed()[0]:
+            self.isChasingMouseClick = True
+            self.lastMouseClick[0] = pygame.mouse.get_pos()[0]
+
+        mousePosCurrentPosDifference = self.lastMouseClick[0] - self.pos[0]
+        if self.isChasingMouseClick and abs(mousePosCurrentPosDifference) > PLAYER_MOUSECLICK_STOP_RANGE:
+            move = 1 if mousePosCurrentPosDifference > 0 else -1
+
+        self.facingLeft = move < 0
+
         self.pos[0] += move*self.speed*dt
 
         if self.barkMeter > 0.0:
@@ -175,6 +193,7 @@ class Obj:
 pygame.init()
 clock = pygame.time.Clock()
 scr = pygame.display.set_mode((600, 480))
+pygame.display.toggle_fullscreen()
 
 player = Player(300)
 bepises = []
